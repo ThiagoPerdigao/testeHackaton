@@ -1,0 +1,613 @@
+{
+  "info": {
+    "_postman_id": "d01d61ef-ab26-402e-b6b6-9078baf92787",
+    "name": "OAuth Authorization Code Flow - Onfly",
+    "description": "Collection para testar o fluxo OAuth2 Authorization Code implementado na OnflyAPI.\n\n## Fluxo completo:\n1. Crie um OAuth Client (POST /oauth/clients)\n2. Discovery endpoint para verificar metadata\n3. GET /oauth/authorize para obter dados do consent\n4. POST /oauth/authorize para aprovar e obter o authorization code\n5. POST /oauth/token para trocar o code por JWT (Passport nativo)\n6. Use o JWT em qualquer rota existente da API\n\n## IMPORTANTE:\n- Todas as rotas Dingo API exigem header Accept: application/prs.onfly.v1+json\n- A rota /oauth/token (Passport nativo) aceita Accept: application/json",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "245403",
+    "_collection_link": "https://go.postman.co/collection/245403-d01d61ef-ab26-402e-b6b6-9078baf92787?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "1. Client Management",
+      "item": [
+        {
+          "name": "1.1 Create OAuth Client",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var json = pm.response.json();",
+                  "    pm.collectionVariables.set('client_id', json.client_id);",
+                  "    pm.collectionVariables.set('client_secret', json.client_secret);",
+                  "    console.log('Client ID:', json.client_id);",
+                  "    console.log('Client Secret:', json.client_secret);",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/prs.onfly.v1+json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Claude Connector - Test\",\n    \"redirect_uri\": \"{{redirect_uri}}\",\n    \"allowed_scopes\": [\"expenses:read\", \"expenses:write\", \"travels:read\"],\n    \"description\": \"Connector de teste para integrar com Claude\",\n    \"logo_url\": null\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth/clients",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "oauth",
+                "clients"
+              ]
+            },
+            "description": "Cria um novo OAuth Client. Salva automaticamente client_id e client_secret nas variáveis da collection."
+          },
+          "response": []
+        },
+        {
+          "name": "1.2 List OAuth Clients",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/prs.onfly.v1+json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/oauth/clients?per_page=15",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "oauth",
+                "clients"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "15"
+                }
+              ]
+            },
+            "description": "Lista todos os OAuth Clients da empresa do usuário autenticado."
+          },
+          "response": []
+        },
+        {
+          "name": "1.3 Update OAuth Client",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/prs.onfly.v1+json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Claude Connector - Updated\",\n    \"description\": \"Descricao atualizada\",\n    \"allowed_scopes\": [\"expenses:read\", \"expenses:write\", \"travels:read\", \"travels:write\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth/clients/{{client_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "oauth",
+                "clients",
+                "{{client_id}}"
+              ]
+            },
+            "description": "Atualiza um OAuth Client existente."
+          },
+          "response": []
+        },
+        {
+          "name": "1.4 Regenerate Client Secret",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var json = pm.response.json();",
+                  "    pm.collectionVariables.set('client_secret', json.client_secret);",
+                  "    console.log('New Client Secret:', json.client_secret);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/prs.onfly.v1+json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/oauth/clients/{{client_id}}/regenerate-secret",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "oauth",
+                "clients",
+                "{{client_id}}",
+                "regenerate-secret"
+              ]
+            },
+            "description": "Regenera o secret do client. Revoga todos os tokens existentes. Salva o novo secret na variável."
+          },
+          "response": []
+        },
+        {
+          "name": "1.5 Delete (Revoke) OAuth Client",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/prs.onfly.v1+json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/oauth/clients/{{client_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "oauth",
+                "clients",
+                "{{client_id}}"
+              ]
+            },
+            "description": "Revoga um OAuth Client e todos os seus tokens."
+          },
+          "response": []
+        }
+      ],
+      "description": "Gerenciamento de OAuth Clients. Precisa estar autenticado."
+    },
+    {
+      "name": "2. Authorization Code Flow",
+      "item": [
+        {
+          "name": "2.0 Discovery (metadata)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/prs.onfly.v1+json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/.well-known/oauth-authorization-server",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                ".well-known",
+                "oauth-authorization-server"
+              ]
+            },
+            "description": "RFC 8414 - Retorna metadata do servidor OAuth (endpoints, scopes, grant types). Rota publica, sem auth."
+          },
+          "response": []
+        },
+        {
+          "name": "2.1 GET Authorize (Consent Screen Data)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/prs.onfly.v1+json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/oauth/authorize?client_id={{client_id}}&redirect_uri={{redirect_uri}}&response_type=code&scope=expenses:read expenses:write travels:read&state=random_state_123",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "oauth",
+                "authorize"
+              ],
+              "query": [
+                {
+                  "key": "client_id",
+                  "value": "{{client_id}}"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "{{redirect_uri}}"
+                },
+                {
+                  "key": "response_type",
+                  "value": "code"
+                },
+                {
+                  "key": "scope",
+                  "value": "expenses:read expenses:write travels:read"
+                },
+                {
+                  "key": "state",
+                  "value": "random_state_123"
+                }
+              ]
+            },
+            "description": "Retorna dados do client e scopes para renderizar a tela de consentimento. O usuario precisa estar logado."
+          },
+          "response": []
+        },
+        {
+          "name": "2.2 POST Authorize (Approve)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var json = pm.response.json();",
+                  "    var redirectUrl = json.redirect_url;",
+                  "    if (redirectUrl) {",
+                  "        var url = new URL(redirectUrl);",
+                  "        var code = url.searchParams.get('code');",
+                  "        if (code) {",
+                  "            pm.collectionVariables.set('authorization_code', code);",
+                  "            console.log('Authorization Code:', code);",
+                  "        }",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/prs.onfly.v1+json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"approved\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth/authorize?client_id={{client_id}}&redirect_uri={{redirect_uri}}&response_type=code&scope=expenses:read expenses:write travels:read&state=random_state_123",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "oauth",
+                "authorize"
+              ],
+              "query": [
+                {
+                  "key": "client_id",
+                  "value": "{{client_id}}"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "{{redirect_uri}}"
+                },
+                {
+                  "key": "response_type",
+                  "value": "code"
+                },
+                {
+                  "key": "scope",
+                  "value": "expenses:read expenses:write travels:read"
+                },
+                {
+                  "key": "state",
+                  "value": "random_state_123"
+                }
+              ]
+            },
+            "description": "Usuario aprova a autorizacao. Os params OAuth vao na query string (League OAuth2 le da PSR-7 request). O body envia apenas 'approved'. Retorna redirect_url com o authorization code. O code é salvo automaticamente na variável."
+          },
+          "response": []
+        },
+        {
+          "name": "2.3 POST Authorize (Deny)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/prs.onfly.v1+json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"approved\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth/authorize?client_id={{client_id}}&redirect_uri={{redirect_uri}}&response_type=code&scope=expenses:read expenses:write travels:read&state=random_state_123",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "oauth",
+                "authorize"
+              ],
+              "query": [
+                {
+                  "key": "client_id",
+                  "value": "{{client_id}}"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "{{redirect_uri}}"
+                },
+                {
+                  "key": "response_type",
+                  "value": "code"
+                },
+                {
+                  "key": "scope",
+                  "value": "expenses:read expenses:write travels:read"
+                },
+                {
+                  "key": "state",
+                  "value": "random_state_123"
+                }
+              ]
+            },
+            "description": "Usuario nega a autorizacao. Retorna redirect_url com error=access_denied."
+          },
+          "response": []
+        },
+        {
+          "name": "2.4 Exchange Code for Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var json = pm.response.json();",
+                  "    pm.collectionVariables.set('oauth_access_token', json.access_token);",
+                  "    console.log('Access Token:', json.access_token);",
+                  "    console.log('Expires In:', json.expires_in, 'seconds');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"grant_type\": \"authorization_code\",\n    \"code\": \"{{authorization_code}}\",\n    \"client_id\": \"{{client_id}}\",\n    \"client_secret\": \"{{client_secret}}\",\n    \"redirect_uri\": \"{{redirect_uri}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth/token",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "oauth",
+                "token"
+              ]
+            },
+            "description": "Troca o authorization code por um JWT access token via Passport nativo (POST /oauth/token). Rota publica (usa client_secret para autenticar). Esta rota NAO usa Dingo, por isso Accept: application/json."
+          },
+          "response": []
+        }
+      ],
+      "description": "Fluxo OAuth2 Authorization Code. Simula o que o app externo faz."
+    },
+    {
+      "name": "3. Token Management",
+      "item": [
+        {
+          "name": "3.1 Revoke Current Token",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{oauth_access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/prs.onfly.v1+json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/oauth/token/revoke",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "oauth",
+                "token",
+                "revoke"
+              ]
+            },
+            "description": "Revoga o access token atual e seus refresh tokens associados."
+          },
+          "response": []
+        },
+        {
+          "name": "3.2 Revoke All Client Tokens",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/prs.onfly.v1+json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/oauth/clients/{{client_id}}/revoke-tokens",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "oauth",
+                "clients",
+                "{{client_id}}",
+                "revoke-tokens"
+              ]
+            },
+            "description": "Revoga todos os tokens de um client especifico. Requer que o client pertenca a empresa do usuario."
+          },
+          "response": []
+        }
+      ],
+      "description": "Gerenciamento de tokens OAuth."
+    },
+    {
+      "name": "4. Test with OAuth Token",
+      "item": [
+        {
+          "name": "4.1 GET /bff/user/logged (com OAuth token)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{oauth_access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/prs.onfly.v1+json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/bff/user/logged",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "bff",
+                "user",
+                "logged"
+              ]
+            },
+            "description": "Testa o token JWT obtido via OAuth em uma rota existente. Deve retornar os dados do usuario que aprovou o consent."
+          },
+          "response": []
+        }
+      ],
+      "description": "Testa que o JWT obtido via OAuth funciona nas rotas existentes da API."
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{bearer_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://api.dev.viagens.dev",
+      "type": "string"
+    },
+    {
+      "key": "bearer_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "client_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "client_secret",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "authorization_code",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "oauth_access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "redirect_uri",
+      "value": "https://example.com/callback",
+      "type": "string"
+    }
+  ]
+}

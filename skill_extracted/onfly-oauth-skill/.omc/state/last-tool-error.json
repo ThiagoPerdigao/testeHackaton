@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cat \\\"/Users/lucasborges/.claude/projects/-Users-lucasborges-Downloads-onfly-oauth-skill/62611f0c-6c2b-4760-b028-edfffa40d06f/tool-results/mcp-onfly-onfly_search_flights-1774791416873.txt\\...",
+  "error": "Exit code 1\nTraceback (most recent call last):\n  File \"<string>\", line 25, in <module>\n    'price': fare.get('price', 0) / 100,\n             ~~~~~~~~~~~~~~~~~~~~~^~~~~\nTypeError: unsupported operand type(s) for /: 'dict' and 'int'\n\nTraceback (most recent call last):\n  File \"<string>\", line 25, in <module>\n    'price': fare.get('price', 0) / 100,\n             ~~~~~~~~~~~~~~~~~~~~~^~~~~\nTypeError: unsupported operand type(s) for /: 'dict' and 'int'",
+  "timestamp": "2026-03-29T13:41:58.637Z",
+  "retry_count": 1
+}
