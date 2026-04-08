@@ -2,9 +2,104 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const { createClient } = require('@supabase/supabase-js');
+const swaggerUi = require('swagger-ui-express');
 
 const app = express();
 app.use(express.json());
+
+// ── Swagger ───────────────────────────────────────────
+const swaggerSpec = {
+  openapi: '3.0.0',
+  info: {
+    title: 'Onfly Auth Service',
+    version: '1.0.0',
+    description: 'Serviço de autenticação OAuth da Onfly. Gerencia tokens de acesso para uso no n8n e integrações externas.',
+  },
+  servers: [{ url: process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 3000}` }],
+  paths: {
+    '/connect': {
+      get: {
+        summary: 'Inicia o fluxo OAuth',
+        description: 'Redireciona o usuário para a tela de consentimento da Onfly. O usuário deve acessar esta URL no browser.',
+        tags: ['Auth'],
+        responses: {
+          302: { description: 'Redirect para o consent screen da Onfly' },
+        },
+      },
+    },
+    '/callback': {
+      get: {
+        summary: 'Callback OAuth (uso interno)',
+        description: 'Recebido automaticamente pela Onfly após o usuário aprovar o acesso. Troca o authorization code por token e salva no Supabase.',
+        tags: ['Auth'],
+        parameters: [
+          { name: 'code', in: 'query', required: true, schema: { type: 'string' }, description: 'Authorization code gerado pela Onfly' },
+          { name: 'state', in: 'query', schema: { type: 'string' } },
+          { name: 'error', in: 'query', schema: { type: 'string' }, description: 'Erro retornado pela Onfly em caso de negação' },
+        ],
+        responses: {
+          302: { description: 'Redirect para FRONTEND_URL com ?success=true&id=<token_id>' },
+          400: { description: 'Código ausente ou erro retornado pela Onfly' },
+          500: { description: 'Falha ao trocar o código ou salvar no Supabase' },
+        },
+      },
+    },
+    
+      post: {
+        summary: 'Salva token manualmente',
+        description: 'Insere um token diretamente no Supabase sem passar pelo fluxo OAuth. Útil para testes ou integração manual.',
+        tags: ['Tokens'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['token'],
+                properties: {
+                  token:      { type: 'string', description: 'JWT access token da Onfly' },
+                  user_name:  { type: 'string', nullable: true },
+                  company_id: { type: 'string', nullable: true },
+                  expires_at: { type: 'string', format: 'date-time', nullable: true },
+                },
+              },
+              example: {
+                token: 'eyJ0eXAiOiJKV1...',
+                user_name: 'João Silva',
+                company_id: '42',
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Token salvo com sucesso',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    id:         { type: 'string', format: 'uuid' },
+                    token:      { type: 'string' },
+                    user_name:  { type: 'string', nullable: true },
+                    company_id: { type: 'string', nullable: true },
+                    created_at: { type: 'string', format: 'date-time' },
+                    expires_at: { type: 'string', format: 'date-time', nullable: true },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Campo token ausente' },
+          500: { description: 'Erro ao inserir no Supabase' },
+        },
+      },
+    },
+  },
+};
+
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/openapi.json', (req, res) => res.json(swaggerSpec));
 
 // ── Supabase ─────────────────────────────────────────
 const supabase = createClient(
@@ -14,6 +109,7 @@ const supabase = createClient(
 
 // ── Config ────────────────────────────────────────────
 const ONFLY_API_URL    = process.env.ONFLY_API_URL    || 'https://api.onfly.com';
+const ONFLY_APP_URL    = process.env.ONFLY_APP_URL    || 'https://app.onfly.com';
 const CLIENT_ID        = process.env.ONFLY_CLIENT_ID  || '1212';
 const CLIENT_SECRET    = process.env.ONFLY_CLIENT_SECRET;
 const REDIRECT_URI     = process.env.REDIRECT_URI     || 'http://localhost:3000/callback';
@@ -31,7 +127,7 @@ app.get('/connect', (req, res) => {
     state:         'onfly_' + Math.random().toString(36).substring(2, 10),
   });
 
-  const authorizeUrl = `${ONFLY_API_URL}/oauth/authorize?${params.toString()}`;
+  const authorizeUrl = `${ONFLY_APP_URL}/v2#/auth/oauth/authorize?${params.toString()}`;
   res.redirect(authorizeUrl);
 });
 
