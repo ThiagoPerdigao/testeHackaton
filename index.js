@@ -24,7 +24,7 @@ const ONFLY_APP_URL    = process.env.ONFLY_APP_URL    || 'https://app.onfly.com'
 const CLIENT_ID        = process.env.ONFLY_CLIENT_ID  || '1282';
 const CLIENT_SECRET    = process.env.ONFLY_CLIENT_SECRET;
 const REDIRECT_URI     = process.env.REDIRECT_URI     || 'https://testehackaton.onrender.com/callback';
-const FRONTEND_URL     = process.env.FRONTEND_URL     || 'http://localhost:3001';
+const FRONTEND_URL     = process.env.FRONTEND_URL     || 'https://starfighter-agent.lovable.app';
 const PORT             = process.env.PORT             || 3000;
 
 // ── GET /connect ──────────────────────────────────────
